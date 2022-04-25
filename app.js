@@ -1,9 +1,8 @@
 const express = require('express');
 const { engine } = require('express-handlebars');
-const https = require('https');
-const http = require('http');
 const async = require("async");
 const RSVP = require('rsvp');
+const axios = require('axios');
 const { fixUrls } = require('./helper')
 
 require('dotenv').config();
@@ -16,79 +15,57 @@ app.set('views', './views');
 
 // helper functions for v1
 function fetchTitleV1(url, cb) {
-    const requestMehtod = url.startsWith('https') ? https : http;
-
-    requestMehtod.get(url, response => {
-        let data = '';
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
-        response.on('end', () => {
-            console.log(data);
-
-            const titleMatch = data.match(/<title[^>]*>([^<]+)<\/title>/);
+    axios
+        .get(url)
+        .then(res => {
+            const titleMatch = String(res.data).match(/<title[^>]*>([^<]+)<\/title>/);
             if (titleMatch && titleMatch.length)
                 cb(titleMatch[1])
             else
                 cb('NO RESPONSE')
-        });
-    }).on('error', err => {
-        cb('NO RESPONSE')
-    })
-
-
+        })
+        .catch(error => {
+            cb('NO RESPONSE')
+        })
 }
 
 // helper functions for v2
 function fetchTitleV2(url, cb) {
-    const requestMehtod = url.startsWith('https') ? https : http;
-
-    requestMehtod.get(url, response => {
-        let data = '';
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
-        response.on('end', () => {
-            const titleMatch = data.match(/<title[^>]*>([^<]+)<\/title>/);
+    axios
+        .get(url)
+        .then(res => {
+            const titleMatch = String(res.data).match(/<title[^>]*>([^<]+)<\/title>/);
             if (titleMatch && titleMatch.length)
                 cb(null, titleMatch[1])
             else
                 cb(null, 'NO RESPONSE')
-        });
-    }).on('error', err => {
-        cb(null, 'NO RESPONSE')
-    })
-
+        })
+        .catch(error => {
+            cb(null, 'NO RESPONSE')
+        })
 }
 
 // helper functions for v3
 function fetchTitleV3(url) {
-    const requestMehtod = url.startsWith('https') ? https : http;
     return new RSVP.Promise(function (resolve, reject) {
-        requestMehtod.get(url, response => {
-            let data = '';
-            response.on('data', (chunk) => {
-                data += chunk;
-            });
-            response.on('end', () => {
-                const titleMatch = data.match(/<title[^>]*>([^<]+)<\/title>/);
+        axios
+            .get(url)
+            .then(res => {
+                const titleMatch = String(res.data).match(/<title[^>]*>([^<]+)<\/title>/);
                 if (titleMatch && titleMatch.length)
                     resolve(titleMatch[1])
                 else
                     resolve('NO RESPONSE')
-            });
-        }).on('error', err => {
-            resolve('NO RESPONSE')
-        })
-
+            })
+            .catch(error => {
+                resolve('NO RESPONSE')
+            })
     });
-
 }
 
 // v1 route
 app.get('/v1/I/want/title/', (req, res) => {
     const { address } = req.query;
-    console.log(address)
     if (!address)
         return res.render('home', {
             titles: [],
